@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Wine, Filters, SortOption } from '@/lib/types';
 import { WineGrid } from '@/components/WineGrid';
 import { FilterSidebar } from '@/components/FilterSidebar';
@@ -11,7 +12,25 @@ import { getCatalogWines, getFilterOptions, searchWines, filterWines, sortWines 
 import { getUserData, getAddedWines, getDeletedWineIds } from '@/lib/userData';
 import { AddWineModal } from '@/components/AddWineModal';
 
+// Helper to parse filters from URL
+function getFiltersFromParams(searchParams: URLSearchParams): Filters {
+  return {
+    country: searchParams.get('country') || '',
+    region: searchParams.get('region') || '',
+    wineType: searchParams.get('wineType') || '',
+    vintage: searchParams.get('vintage') || '',
+    body: searchParams.get('body') || '',
+    tanninLevel: searchParams.get('tanninLevel') || '',
+    acidityLevel: searchParams.get('acidityLevel') || '',
+    drinkWindowStatus: searchParams.get('drinkWindowStatus') || '',
+    grapeVariety: searchParams.get('grapeVariety') || '',
+  };
+}
+
 export default function HomePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const catalogWines = useMemo(() => getCatalogWines(), []);
   const [userAddedWines, setUserAddedWines] = useState<Wine[]>([]);
   const [deletedWineIds, setDeletedWineIds] = useState<string[]>([]);
@@ -31,25 +50,33 @@ export default function HomePage() {
   
   const filterOptions = useMemo(() => getFilterOptions(allWines), [allWines]);
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<Filters>({
-    country: '',
-    region: '',
-    wineType: '',
-    vintage: '',
-    body: '',
-    tanninLevel: '',
-    acidityLevel: '',
-    drinkWindowStatus: '',
-    grapeVariety: '',
-  });
+  // Initialize state from URL params
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [filters, setFilters] = useState<Filters>(() => getFiltersFromParams(searchParams));
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  const [showConsumed, setShowConsumed] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('drink-soon');
+  const [showConsumed, setShowConsumed] = useState(searchParams.get('showConsumed') === 'true');
+  const [sortBy, setSortBy] = useState<SortOption>((searchParams.get('sort') as SortOption) || 'drink-soon');
   const [similarWineTarget, setSimilarWineTarget] = useState<Wine | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'compact' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'compact' | 'list'>((searchParams.get('view') as 'grid' | 'compact' | 'list') || 'grid');
+
+  // Update URL when filters change
+  const updateURL = useCallback((newFilters: Filters, newSearch: string, newSort: SortOption, newShowConsumed: boolean, newViewMode: string) => {
+    const params = new URLSearchParams();
+    
+    if (newSearch) params.set('q', newSearch);
+    if (newSort !== 'drink-soon') params.set('sort', newSort);
+    if (newShowConsumed) params.set('showConsumed', 'true');
+    if (newViewMode !== 'grid') params.set('view', newViewMode);
+    
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    
+    const queryString = params.toString();
+    router.replace(queryString ? `/?${queryString}` : '/', { scroll: false });
+  }, [router]);
   
   const handleWineAdded = (wine: Wine) => {
     setUserAddedWines(prev => [...prev, wine]);
@@ -93,7 +120,29 @@ export default function HomePage() {
   }, [allWines, searchQuery, filters, showConsumed, consumedCounts, sortBy]);
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    updateURL(newFilters, searchQuery, sortBy, showConsumed, viewMode);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    updateURL(filters, value, sortBy, showConsumed, viewMode);
+  };
+
+  const handleSortChange = (value: SortOption) => {
+    setSortBy(value);
+    updateURL(filters, searchQuery, value, showConsumed, viewMode);
+  };
+
+  const handleShowConsumedChange = (value: boolean) => {
+    setShowConsumed(value);
+    updateURL(filters, searchQuery, sortBy, value, viewMode);
+  };
+
+  const handleViewModeChange = (value: 'grid' | 'compact' | 'list') => {
+    setViewMode(value);
+    updateURL(filters, searchQuery, sortBy, showConsumed, value);
   };
 
   // Calculate stats
@@ -170,18 +219,18 @@ export default function HomePage() {
       {/* Filter Sidebar */}
       <FilterSidebar
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         filters={filters}
         onFilterChange={handleFilterChange}
         options={filterOptions}
         resultCount={filteredWines.length}
         totalCount={showConsumed ? allWines.length : activeWineCount}
         showConsumed={showConsumed}
-        onShowConsumedChange={setShowConsumed}
+        onShowConsumedChange={handleShowConsumedChange}
         sortBy={sortBy}
-        onSortChange={setSortBy}
+        onSortChange={handleSortChange}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
         isMobileOpen={isMobileFilterOpen}
         onMobileClose={() => setIsMobileFilterOpen(false)}
       />
@@ -288,7 +337,7 @@ export default function HomePage() {
           <button
             onClick={() => {
               const newMode = viewMode === 'grid' ? 'compact' : viewMode === 'compact' ? 'list' : 'grid';
-              setViewMode(newMode);
+              handleViewModeChange(newMode);
             }}
             className="flex flex-col items-center justify-center p-2 text-gray-400 hover:text-white"
           >
