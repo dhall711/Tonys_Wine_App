@@ -1,15 +1,19 @@
 # Wine Catalog Web App
 
-A mobile-friendly Next.js web application for browsing and exploring your personal wine collection, featuring an AI sommelier powered by Claude.
+**Live at:** [tonys-wine-app-uxbb.vercel.app](https://tonys-wine-app-uxbb.vercel.app)
+
+A mobile-friendly Next.js 15 web application for browsing and exploring your personal wine collection, featuring an AI sommelier powered by Claude. Images are hosted on Supabase Storage for fast global delivery.
 
 ## Features
 
 ### Browse & Filter
 - **Fixed Filter Sidebar** - Stays in place while you scroll through wines
 - **Advanced Filtering** - Filter by country, region, wine type, vintage, body, tannin level, acidity, and drinking status
+- **URL-Persisted Filters** - Filters are saved in the URL; back button restores your previous view
 - **Drink Window Status** - Filter wines that are Ready to Drink, At Peak, Too Young, or Past Prime
 - **Search** - Find wines by producer, name, region, grape variety, or tasting notes
-- **Responsive Wine Grid** - Beautiful card-based layout that works on desktop and mobile
+- **Multiple View Modes** - Grid, Compact, and List views
+- **Responsive Design** - Beautiful card-based layout that works on desktop and mobile
 
 ### Wine Details
 - **Full Wine Information** - Structure, drinking window, tasting notes, food pairings
@@ -68,19 +72,24 @@ A mobile-friendly Next.js web application for browsing and exploring your person
 
 ## Deployment to Vercel
 
+The app is deployed at [tonys-wine-app-uxbb.vercel.app](https://tonys-wine-app-uxbb.vercel.app).
+
+To deploy your own instance:
+
 1. Push this project to a GitHub repository
 
 2. Go to [vercel.com](https://vercel.com) and sign in with GitHub
 
 3. Click "New Project" and import your repository
 
-4. Add your environment variable:
-   - Name: `ANTHROPIC_API_KEY`
-   - Value: Your API key from [console.anthropic.com](https://console.anthropic.com)
+4. Add environment variables:
+   - `ANTHROPIC_API_KEY` - Your API key from [console.anthropic.com](https://console.anthropic.com)
+   - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
 
 5. Click "Deploy"
 
-Your app will be live at `your-project.vercel.app`!
+**Image Hosting:** Wine label images are stored in Supabase Storage (bucket: `wine-labels`). The `wine-catalog.json` file contains full Supabase URLs for each image.
 
 ## Project Structure
 
@@ -95,19 +104,25 @@ wine-catalog-app/
 ├── components/
 │   ├── WineCard.tsx        # Wine card component
 │   ├── WineGrid.tsx        # Grid of wine cards
+│   ├── WineCardCompact.tsx # Compact view card
+│   ├── WineCardList.tsx    # List view card
 │   ├── FilterSidebar.tsx   # Fixed filter sidebar
 │   ├── SimilarWinesModal.tsx # Similar wines finder
+│   ├── AddWineModal.tsx    # Add wine via label photo
 │   ├── ChatWidget.tsx      # AI chat interface
 │   └── ImageModal.tsx      # Enlarged image viewer
 ├── lib/
 │   ├── wines.ts            # Wine data utilities + similarity algorithm
 │   ├── userData.ts         # User data persistence (localStorage)
+│   ├── supabase.ts         # Supabase client configuration
 │   └── types.ts            # TypeScript type definitions
 ├── data/
-│   └── wine-catalog.json   # Wine data (converted from CSV)
+│   └── wine-catalog.json   # Wine data with Supabase image URLs
 └── public/
-    └── wine-labels/        # Label images
+    └── logo.png            # App logo
 ```
+
+**Note:** Wine label images (463 files, ~500MB) are hosted on Supabase Storage, not in this repo.
 
 ## Similarity Algorithm
 
@@ -131,11 +146,12 @@ User data (consumed wines, personal notes) is stored in browser localStorage. Th
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 with App Router
+- **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **AI**: Anthropic Claude API
-- **Hosting**: Vercel (recommended)
+- **AI**: Anthropic Claude API (for sommelier chat and label extraction)
+- **Image Storage**: Supabase Storage
+- **Hosting**: Vercel
 
 ## Scripts
 
