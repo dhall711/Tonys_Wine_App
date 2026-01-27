@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Wine, Filters, SortOption } from '@/lib/types';
 import { WineGrid } from '@/components/WineGrid';
@@ -27,7 +27,28 @@ function getFiltersFromParams(searchParams: URLSearchParams): Filters {
   };
 }
 
+// Loading fallback for Suspense
+function HomePageLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-wine-red mx-auto"></div>
+        <p className="mt-4 text-gray-400">Loading collection...</p>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper component with Suspense
 export default function HomePage() {
+  return (
+    <Suspense fallback={<HomePageLoading />}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
