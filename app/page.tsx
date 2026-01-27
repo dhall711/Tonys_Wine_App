@@ -166,6 +166,23 @@ function HomePageContent() {
     updateURL(filters, searchQuery, sortBy, showConsumed, value);
   };
 
+  const handleClearFilters = () => {
+    const emptyFilters: Filters = {
+      country: '',
+      region: '',
+      wineType: '',
+      vintage: '',
+      body: '',
+      tanninLevel: '',
+      acidityLevel: '',
+      drinkWindowStatus: '',
+      grapeVariety: '',
+    };
+    setSearchQuery('');
+    setFilters(emptyFilters);
+    router.replace('/', { scroll: false });
+  };
+
   // Calculate stats
   const { activeWineCount, totalBottles } = useMemo(() => {
     let activeCount = 0;
@@ -243,6 +260,7 @@ function HomePageContent() {
         onSearchChange={handleSearchChange}
         filters={filters}
         onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
         options={filterOptions}
         resultCount={filteredWines.length}
         totalCount={showConsumed ? allWines.length : activeWineCount}

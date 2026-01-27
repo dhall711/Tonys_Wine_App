@@ -9,6 +9,7 @@ interface FilterSidebarProps {
   onSearchChange: (query: string) => void;
   filters: Filters;
   onFilterChange: (key: keyof Filters, value: string) => void;
+  onClearFilters: () => void;
   options: FilterOptions;
   resultCount: number;
   totalCount: number;
@@ -44,6 +45,7 @@ export function FilterSidebar({
   onSearchChange,
   filters,
   onFilterChange,
+  onClearFilters,
   options,
   resultCount,
   totalCount,
@@ -57,11 +59,6 @@ export function FilterSidebar({
   onMobileClose,
 }: FilterSidebarProps) {
   const hasActiveFilters = searchQuery || Object.values(filters).some(v => v);
-
-  const clearFilters = () => {
-    onSearchChange('');
-    Object.keys(filters).forEach(key => onFilterChange(key as keyof Filters, ''));
-  };
 
   const FilterSelect = ({ 
     label, 
@@ -225,7 +222,7 @@ export function FilterSidebar({
       {hasActiveFilters && (
         <div className="p-4 border-t border-gray-700">
           <button
-            onClick={clearFilters}
+            onClick={onClearFilters}
             className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
             Clear All Filters
