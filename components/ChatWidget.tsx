@@ -1,15 +1,58 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { ChatMessage } from '@/lib/types';
+import { useState, useRef, useEffect, useMemo, ReactNode } from 'react';
+import { ChatMessage, WineReference } from '@/lib/types';
 import { getAddedWines } from '@/lib/userData';
 
 interface ChatWidgetProps {
   isOpen: boolean;
   onClose: () => void;
+  onWineClick?: (wineId: string) => void;
 }
 
-export function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
+// Parse message content and convert [[Name|id]] to clickable elements
+function parseMessageContent(
+  content: string, 
+  onWineClick?: (wineId: string) => void
+): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const regex = /\[\[([^\]|]+)\|([^\]]+)\]\]/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(content)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    
+    // Add the wine link
+    const displayName = match[1];
+    const wineId = match[2];
+    parts.push(
+      <button
+        key={key++}
+        onClick={() => onWineClick?.(wineId)}
+        className="text-wine-red hover:text-wine-red-dark underline decoration-dotted underline-offset-2 font-medium transition-colors"
+        title="Click to view this wine"
+      >
+        {displayName}
+      </button>
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : [content];
+}
+
+export function ChatWidget({ isOpen, onClose, onWineClick }: ChatWidgetProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -148,7 +191,12 @@ export function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
                   : 'bg-white shadow'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <p className="text-sm whitespace-pre-wrap">
+                {msg.role === 'assistant' 
+                  ? parseMessageContent(msg.content, onWineClick)
+                  : msg.content
+                }
+              </p>
             </div>
           </div>
         ))}

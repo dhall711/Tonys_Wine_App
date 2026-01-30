@@ -417,6 +417,33 @@ function HomePageContent() {
       <ChatWidget 
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+        onWineClick={(wineId) => {
+          // Find the wine by ID
+          const wine = allWines.find(w => w.id === wineId);
+          if (wine) {
+            // Clear existing filters and search for just the producer name
+            const emptyFilters: Filters = {
+              country: '',
+              region: '',
+              wineType: '',
+              vintage: '',
+              body: '',
+              tanninLevel: '',
+              acidityLevel: '',
+              drinkWindowStatus: '',
+              grapeVariety: '',
+            };
+            setFilters(emptyFilters);
+            // Use producer name as search (it will match the wine's producer field)
+            const searchTerm = wine.producer;
+            setSearchQuery(searchTerm);
+            updateURL(emptyFilters, searchTerm, sortBy, showConsumed, viewMode);
+          }
+          // Close the chat
+          setIsChatOpen(false);
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       <SimilarWinesModal

@@ -41,9 +41,15 @@ export interface Wine {
   notes: string;
 }
 
+export interface WineReference {
+  id: string;
+  displayName: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  wineReferences?: WineReference[];
 }
 
 export interface FilterOptions {

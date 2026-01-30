@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { getWineSummaryForAI } from '@/lib/wines';
+import { getCatalogWines } from '@/lib/wines';
+import { Wine, WineReference } from '@/lib/types';
 
 // Initialize Anthropic client (will use ANTHROPIC_API_KEY env var)
 const anthropic = new Anthropic();
 
 interface UserWine {
+  id?: string;
   producer: string;
   name: string;
   vintage: string;
@@ -21,12 +23,20 @@ interface UserWine {
   quantity: string;
 }
 
+// Format wines with IDs for AI context
+function formatWinesForAI(wines: Wine[]): string {
+  return wines.map(w => 
+    `[ID:${w.id}] ${w.producer} ${w.name} (${w.vintage || 'NV'}) - ${w.wineType} from ${w.country}, ${w.region}${w.grapeVarieties ? ` - ${w.grapeVarieties}` : ''}${w.foodPairings ? ` | Pairs with: ${w.foodPairings}` : ''}${w.drinkWindowStart && w.drinkWindowEnd ? ` | Drink: ${w.drinkWindowStart}-${w.drinkWindowEnd}` : ''}`
+  ).join('\n');
+}
+
 function formatUserWinesForAI(wines: UserWine[]): string {
   if (!wines || wines.length === 0) return '';
   
   return wines.map(w => {
+    const id = w.id || `user-${w.producer}-${w.name}`.toLowerCase().replace(/\s+/g, '-');
     const parts = [
-      `${w.producer} ${w.name}`,
+      `[ID:${id}] ${w.producer} ${w.name}`,
       w.vintage && `(${w.vintage})`,
       w.region && w.country && `- ${w.region}, ${w.country}`,
       w.wineType && `[${w.wineType}]`,
@@ -39,6 +49,28 @@ function formatUserWinesForAI(wines: UserWine[]): string {
     ].filter(Boolean);
     return parts.join(' | ');
   }).join('\n');
+}
+
+// Parse wine references from AI response
+function parseWineReferences(text: string, allWines: Wine[], userWines: UserWine[]): WineReference[] {
+  const references: WineReference[] = [];
+  const seen = new Set<string>();
+  
+  // Match [[Wine Name|id]] format
+  const regex = /\[\[([^\]|]+)\|([^\]]+)\]\]/g;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    const displayName = match[1];
+    const id = match[2];
+    
+    if (!seen.has(id)) {
+      seen.add(id);
+      references.push({ id, displayName });
+    }
+  }
+  
+  return references;
 }
 
 export async function POST(request: Request) {
@@ -63,8 +95,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get wine collection context (catalog wines)
-    const wineContext = getWineSummaryForAI();
+    // Get wine collection with IDs
+    const catalogWines = getCatalogWines();
+    const wineContext = formatWinesForAI(catalogWines);
     
     // Format user-added wines
     const userWineContext = formatUserWinesForAI(userAddedWines || []);
@@ -75,15 +108,20 @@ export async function POST(request: Request) {
       : wineContext;
 
     // Build the system prompt
-    const totalWines = wineContext.split('\n').length + (userAddedWines?.length || 0);
+    const totalWines = catalogWines.length + (userAddedWines?.length || 0);
     const systemPrompt = `You are a knowledgeable wine sommelier assistant helping a collector explore their personal wine collection. You have deep expertise in wine regions, grape varieties, food pairings, and optimal drinking windows.
 
-Here is the user's current wine collection (${totalWines} wines):
+Here is the user's current wine collection (${totalWines} wines). Each wine has an ID shown in brackets:
 
 ${fullContext}
 
+IMPORTANT: When you mention a specific wine from the collection, format it as a clickable link using this exact format: [[Display Name|ID]]
+For example, if a wine is listed as "[ID:178] Castello Banfi Brunello di Montalcino (2018)...", format it as: [[Castello Banfi Brunello di Montalcino 2018|178]]
+
+The display name should be the producer and wine name (optionally with vintage). The ID is the number from the [ID:xxx] prefix in the wine list above - use EXACTLY that number.
+
 Based on this collection, answer the user's questions helpfully and specifically. When making recommendations:
-- Reference specific wines from their collection by name
+- Reference specific wines from their collection using the [[Name|id]] format so they become clickable links
 - Consider the wine type, grape varieties, region, and tasting notes
 - Suggest appropriate food pairings based on the wine characteristics
 - Note drinking windows and whether wines are ready to drink or should be cellared
@@ -104,8 +142,11 @@ Be conversational, enthusiastic about wine, and provide practical advice.`;
     // Extract text response
     const textContent = response.content.find(block => block.type === 'text');
     const reply = textContent ? textContent.text : 'I apologize, but I was unable to generate a response.';
+    
+    // Parse wine references from the reply
+    const wineReferences = parseWineReferences(reply, catalogWines, userAddedWines || []);
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, wineReferences });
 
   } catch (error) {
     console.error('Chat API error:', error);
