@@ -101,6 +101,26 @@ function HomePageContent() {
   
   const handleWineAdded = (wine: Wine) => {
     setUserAddedWines(prev => [...prev, wine]);
+    
+    // Clear filters and search for the newly added wine to confirm it was added
+    const emptyFilters: Filters = {
+      country: '',
+      region: '',
+      wineType: '',
+      vintage: '',
+      body: '',
+      tanninLevel: '',
+      acidityLevel: '',
+      drinkWindowStatus: '',
+      grapeVariety: '',
+    };
+    setFilters(emptyFilters);
+    // Search by producer to show the new wine
+    const searchTerm = wine.producer;
+    setSearchQuery(searchTerm);
+    updateURL(emptyFilters, searchTerm, sortBy, showConsumed, viewMode);
+    // Scroll to top so the user sees the new wine
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const scrollToTop = () => {
